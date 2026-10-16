@@ -1,0 +1,78 @@
+name: Build VoiceShiftMobile
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Restore project files from repository ZIP, if needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f settings.gradle.kts ]]; then
+            found=""
+            for archive in VoiceShiftMobile_*.zip; do
+              [[ -f "$archive" ]] || continue
+              tmp="$(mktemp -d)"
+              if unzip -oq "$archive" -d "$tmp"; then
+                candidate="$(find "$tmp" -type f -name settings.gradle.kts -print -quit)"
+                if [[ -n "$candidate" ]]; then
+                  found="$(dirname "$candidate")"
+                  cp "$found/settings.gradle.kts" .
+                  [[ ! -f "$found/build.gradle.kts" ]] || cp "$found/build.gradle.kts" .
+                  [[ ! -f "$found/gradle.properties" ]] || cp "$found/gradle.properties" .
+                  mkdir -p app
+                  [[ ! -d "$found/app" ]] || cp -a "$found/app/." app/
+                  break
+                fi
+              fi
+              rm -rf "$tmp"
+            done
+            if [[ -z "$found" ]]; then
+              echo "Could not find settings.gradle.kts in any VoiceShiftMobile_*.zip archive."
+              exit 1
+            fi
+          fi
+          test -f settings.gradle.kts
+          test -f build.gradle.kts
+          test -f app/build.gradle.kts
+          test -f app/src/main/AndroidManifest.xml
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build debug APK
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: VoiceShiftMobile-debug-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
