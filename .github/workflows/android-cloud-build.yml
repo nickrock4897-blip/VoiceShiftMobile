@@ -1,4 +1,4 @@
-name: Android Cloud APK Build
+name: Anti-AFK Assistant Android APK Build
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    name: Build safe Session Timer APK
+    name: Build original Anti-AFK Assistant APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -62,7 +62,7 @@ jobs:
           gradle --version
           sdkmanager --list_installed
 
-      - name: Rebuild and verify Android project archive
+      - name: Rebuild and verify original Android source archive
         shell: bash
         run: |
           set -euo pipefail
@@ -71,24 +71,57 @@ jobs:
           mkdir source
           tar -xzf source.tar.gz -C source
           test -f source/settings.gradle.kts
-          test -f source/app/build.gradle.kts
+          test -f source/app/src/main/java/de/antiafk/assistant/MainActivity.kt
+          test -f source/app/src/main/java/de/antiafk/assistant/SessionCore.kt
           cp app-build.gradle.kts source/app/build.gradle.kts
+          echo "MainActivity source checksum:"
+          sha256sum source/app/src/main/java/de/antiafk/assistant/MainActivity.kt
 
-      - name: Replace gameplay automation with safe Session Timer
-        run: bash .github/scripts/create-safe-session-timer.sh
+      - name: Apply Kotlin compatibility fixes to original app
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
 
-      - name: Build debug and release APKs
+          root = Path("source/app/src/main/java/de/antiafk/assistant")
+          main = root / "MainActivity.kt"
+          source = main.read_text()
+
+          if "import android.content.Context" not in source:
+              anchor = "import android.content.Intent"
+              assert anchor in source, "MainActivity import anchor not found"
+              source = source.replace(anchor, "import android.content.Context\\n" + anchor, 1)
+
+          old_callback = "    fun changed() { refresh++ }"
+          new_callback = "    val changed: () -> Unit = { refresh++ }"
+          if old_callback in source:
+              source = source.replace(old_callback, new_callback, 1)
+          assert new_callback in source, "MainActivity callback declaration not fixed"
+          main.write_text(source)
+
+          service = root / "ScreenAnalysisService.kt"
+          source = service.read_text()
+          old_projection = "            val activeProjection = manager.getMediaProjection(resultCode, resultData)\\n            projection = activeProjection"
+          new_projection = "            val activeProjection = manager.getMediaProjection(resultCode, resultData)\\n            if (activeProjection == null) {\\n                stopSelf()\\n                return START_NOT_STICKY\\n            }\\n            projection = activeProjection"
+          if old_projection in source:
+              source = source.replace(old_projection, new_projection, 1)
+          assert "if (activeProjection == null)" in source, "ScreenProjection null handling not fixed"
+          service.write_text(source)
+          PY
+
+      - name: Run unit tests and build original debug and release APKs
         shell: bash
         run: |
           set -euo pipefail
           cd source
-          gradle --no-daemon --stacktrace --warning-mode all clean assembleDebug assembleRelease
+          gradle --no-daemon --stacktrace --warning-mode all clean testDebugUnitTest assembleDebug assembleRelease
           find app/build/outputs/apk -type f -name '*.apk' -print
 
-      - name: Upload installable APKs
+      - name: Upload original Anti-AFK Assistant APKs
         uses: actions/upload-artifact@v4
         with:
-          name: session-timer-android-apks
+          name: anti-afk-assistant-original-1.4.4-apks
           path: |
             source/app/build/outputs/apk/debug/*.apk
             source/app/build/outputs/apk/release/*.apk
