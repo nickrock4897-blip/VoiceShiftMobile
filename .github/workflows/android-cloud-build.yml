@@ -76,6 +76,8 @@ jobs:
           cp app-build.gradle.kts source/app/build.gradle.kts
           echo "MainActivity source checksum:"
           sha256sum source/app/src/main/java/de/antiafk/assistant/MainActivity.kt
+          echo "ScreenAnalysisService projection code:"
+          grep -n -A8 -B3 "getMediaProjection" source/app/src/main/java/de/antiafk/assistant/ScreenAnalysisService.kt
 
       - name: Apply Kotlin compatibility fixes to original app
         shell: bash
@@ -83,6 +85,7 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           root = Path("source/app/src/main/java/de/antiafk/assistant")
           main = root / "MainActivity.kt"
@@ -102,11 +105,15 @@ jobs:
 
           service = root / "ScreenAnalysisService.kt"
           source = service.read_text()
-          old_projection = "            val activeProjection = manager.getMediaProjection(resultCode, resultData)\\n            projection = activeProjection"
-          new_projection = "            val activeProjection = manager.getMediaProjection(resultCode, resultData)\\n            if (activeProjection == null) {\\n                stopSelf()\\n                return START_NOT_STICKY\\n            }\\n            projection = activeProjection"
-          if old_projection in source:
-              source = source.replace(old_projection, new_projection, 1)
-          assert "if (activeProjection == null)" in source, "ScreenProjection null handling not fixed"
+          if "if (activeProjection == null)" not in source:
+              pattern = r"(val activeProjection\\s*=\\s*manager\\.getMediaProjection\\(resultCode, resultData\\)\\s*\\n)"
+              source, count = re.subn(
+                  pattern,
+                  r"\\1            if (activeProjection == null) {\\n                stopSelf()\\n                return START_NOT_STICKY\\n            }\\n",
+                  source,
+                  count=1
+              )
+              assert count == 1, "Could not add MediaProjection null guard"
           service.write_text(source)
           PY
 
