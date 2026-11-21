@@ -56,7 +56,7 @@ patch(screen, [
 ),
 (
 "            manager.createNotificationChannel(\n                    NotificationChannel(CHANNEL_ID, \"Bildschirmanalyse\", NotificationManager.IMPORTANCE_LOW).apply {\n                        description = \"Zeigt an, wenn die ausdrücklich gestartete Bildschirmvorschau aktiv ist.\"\n                    }\n                )\n",
-"            manager.createNotificationChannel(\n                    NotificationChannel(CHANNEL_ID, \"Bildschirmanalyse\", NotificationManager.IMPORTANCE_LOW).apply {\n                        description = \"Zeigt an, wenn die ausdrücklich gestartete Bildschirmvorschau aktiv ist.\"\n                    }\n                )\n            if (manager.getNotificationChannel(ALERT_CHANNEL_ID) == null) {\n                manager.createNotificationChannel(\n                    NotificationChannel(ALERT_CHANNEL_ID, \"Erkannte Bildschirmhinweise\", NotificationManager.IMPORTANCE_DEFAULT).apply {\n                        description = \"Meldet lokal erkannte mögliche Verbindungs- oder Fehlermeldungen.\"\n                    }\n                )\n            }\n",
+"            manager.createNotificationChannel(\n                    NotificationChannel(CHANNEL_ID, \"Bildschirmanalyse\", NotificationManager.IMPORTANCE_LOW).apply {\n                        description = \"Zeigt an, wenn die ausdrücklich gestartete Bildschirmvorschau aktiv ist.\"\n                    }\n                )\n            }\n            if (manager.getNotificationChannel(ALERT_CHANNEL_ID) == null) {\n                manager.createNotificationChannel(\n                    NotificationChannel(ALERT_CHANNEL_ID, \"Erkannte Bildschirmhinweise\", NotificationManager.IMPORTANCE_DEFAULT).apply {\n                        description = \"Meldet lokal erkannte mögliche Verbindungs- oder Fehlermeldungen.\"\n                    }\n                )\n            }\n",
 "add notifications channel"
 ),
 (
@@ -91,7 +91,7 @@ patch(screen, [
 ),
 (
 "    fun setMetrics(context: Context, brightness: Float, level: String, timestamp: Long) {\n",
-"    fun setRecognition(context: Context, text: String, status: String, error: String, timestamp: Long) {\n        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()\n            .putString(\"recognized_text\", text.take(1_200))\n            .putString(\"detected_status\", status.take(160))\n            .putString(\"last_error\", error.take(300))\n            .putLong(\"last_analysis_at\", timestamp)\n            .apply()\n    }\n\n    fun setMetrics(context: Context, brightness: Float, level: String, timestamp: Long) {\n"
+"    fun setRecognition(context: Context, text: String, status: String, error: String, timestamp: Long) {\n        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()\n            .putString(\"recognized_text\", text.take(1_200))\n            .putString(\"detected_status\", status.take(160))\n            .putString(\"last_error\", error.take(300))\n            .putLong(\"last_analysis_at\", timestamp)\n            .apply()\n    }\n\n    fun setMetrics(context: Context, brightness: Float, level: String, timestamp: Long) {\n",
 "store recognition result"
 )
 ])
