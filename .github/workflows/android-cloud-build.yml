@@ -73,6 +73,20 @@ jobs:
           test -f source/settings.gradle.kts
           test -f source/app/src/main/java/de/antiafk/assistant/MainActivity.kt
 
+      - name: Export untouched original Android project for inspection
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar --exclude='.gradle' --exclude='app/build' -czf original-android-source.tar.gz -C source .
+
+      - name: Upload untouched original Android project
+        uses: actions/upload-artifact@v4
+        with:
+          name: original-android-project-source
+          path: original-android-source.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Generate floating AFK session menu
         shell: bash
         run: |
