@@ -61,7 +61,7 @@ jobs:
           gradle --version
           sdkmanager --list_installed
 
-      - name: Reassemble and verify Android source archive
+      - name: Reassemble, verify and patch Android source archive
         shell: bash
         run: |
           set -euo pipefail
@@ -72,6 +72,39 @@ jobs:
           test -f source/settings.gradle.kts
           test -f source/app/build.gradle.kts
           cp app-build.gradle.kts source/app/build.gradle.kts
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path("source/app/src/main/java/de/antiafk/assistant")
+          main = root / "MainActivity.kt"
+          text = main.read_text()
+          old_import = "import android.content.Intent\\n"
+          new_import = "import android.content.Context\\n" + old_import
+          if "import android.content.Context\\n" not in text:
+              assert old_import in text, "MainActivity import anchor not found"
+              text = text.replace(old_import, new_import, 1)
+          old_callback = "    fun changed() { refresh++ }\\n"
+          new_callback = "    val changed: () -> Unit = { refresh++ }\\n"
+          assert old_callback in text, "MainActivity callback anchor not found"
+          text = text.replace(old_callback, new_callback, 1)
+          main.write_text(text)
+
+          service = root / "ScreenAnalysisService.kt"
+          text = service.read_text()
+          old_projection = """            val activeProjection = manager.getMediaProjection(resultCode, resultData)
+            projection = activeProjection
+"""
+          new_projection = """            val activeProjection = manager.getMediaProjection(resultCode, resultData)
+            if (activeProjection == null) {
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            projection = activeProjection
+"""
+          assert old_projection in text, "ScreenAnalysisService projection anchor not found"
+          text = text.replace(old_projection, new_projection, 1)
+          service.write_text(text)
+          PY
 
       - name: Run unit tests and build debug and release APKs
         shell: bash
