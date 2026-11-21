@@ -260,6 +260,7 @@ import java.io.FileOutputStream
 import kotlin.math.roundToInt
 
 /** Explicitly authorized, read-only, local screen capture and text recognition. */
+@android.annotation.SuppressLint("MissingPermission")
 class ScreenAnalysisService : Service() {
     private var projection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
