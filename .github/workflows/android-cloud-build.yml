@@ -98,22 +98,6 @@ jobs:
           test -f source/app/src/main/java/de/antiafk/assistant/ScreenAnalysisService.kt
           test -f source/app/src/main/java/de/antiafk/assistant/ScreenTextClassifier.kt
 
-      - name: Run unit tests
-        timeout-minutes: 12
-        shell: bash
-        run: |
-          set -euxo pipefail
-          cd source
-          gradle --no-daemon --console=plain --stacktrace --warning-mode all clean testDebugUnitTest
-
-      - name: Run Android lint
-        timeout-minutes: 12
-        shell: bash
-        run: |
-          set -euxo pipefail
-          cd source
-          gradle --no-daemon --console=plain --stacktrace lintDebug
-
       - name: Assemble debug APK
         timeout-minutes: 12
         shell: bash
@@ -130,6 +114,22 @@ jobs:
           path: source/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Run unit tests
+        timeout-minutes: 12
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd source
+          gradle --no-daemon --console=plain --stacktrace --warning-mode all clean testDebugUnitTest
+
+      - name: Run Android lint
+        timeout-minutes: 12
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd source
+          gradle --no-daemon --console=plain --stacktrace lintDebug
 
       - name: Assemble release APK
         timeout-minutes: 12
