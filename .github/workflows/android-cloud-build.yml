@@ -65,7 +65,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat anti-afk-source.part*.b64 > source.tar.gz
+          cat anti-afk-source.part00 anti-afk-source.part01 anti-afk-source.part02 anti-afk-source.part03 anti-afk-source.part04 anti-afk-source.part05 anti-afk-source.part06a anti-afk-source.part06b anti-afk-source.part06c anti-afk-source.part06d anti-afk-source.part06e anti-afk-source.part06f anti-afk-source.part07 > source.tar.gz
           echo "4b37b935257da6e4467a3026bfa70eb1b9b56f034e3a7e11f334f7d7792c6dd0  source.tar.gz" | sha256sum --check
           mkdir source
           tar -xzf source.tar.gz -C source
