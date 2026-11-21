@@ -121,6 +121,15 @@ jobs:
           set -euxo pipefail
           cd source
           gradle --no-daemon --console=plain --stacktrace assembleDebug
+          test -s app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload debug APK immediately
+        uses: actions/upload-artifact@v4
+        with:
+          name: anti-afk-assistant-1.6.5-debug-apk
+          path: source/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Assemble release APK
         timeout-minutes: 12
@@ -131,12 +140,10 @@ jobs:
           gradle --no-daemon --console=plain --stacktrace assembleRelease
           find app/build/outputs/apk -type f -name '*.apk' -print
 
-      - name: Upload Anti-AFK Assistant APKs
+      - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: anti-afk-assistant-1.6.5-full-safe-apks
-          path: |
-            source/app/build/outputs/apk/debug/*.apk
-            source/app/build/outputs/apk/release/*.apk
+          name: anti-afk-assistant-1.6.5-release-apk
+          path: source/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 30
