@@ -727,18 +727,18 @@ class FloatingAssistantService : Service() {
     private fun drag(view: View, event: MotionEvent, params: WindowManager.LayoutParams, key: String): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                view.setTag(R.id.drag_state, floatArrayOf(event.rawX, event.rawY, params.x.toFloat(), params.y.toFloat()))
+                view.setTag(floatArrayOf(event.rawX, event.rawY, params.x.toFloat(), params.y.toFloat()))
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
-                val origin = view.getTag(R.id.drag_state) as? FloatArray ?: return true
+                val origin = view.tag as? FloatArray ?: return true
                 params.x = (origin[2] + event.rawX - origin[0]).toInt().coerceAtLeast(0)
                 params.y = (origin[3] + event.rawY - origin[1]).toInt().coerceAtLeast(0)
                 runCatching { windowManager.updateViewLayout(view, params) }
                 return true
             }
             MotionEvent.ACTION_UP -> {
-                val origin = view.getTag(R.id.drag_state) as? FloatArray
+                val origin = view.tag as? FloatArray
                 if (origin != null) {
                     val moved = kotlin.math.abs(event.rawX - origin[0]) > dp(5) || kotlin.math.abs(event.rawY - origin[1]) > dp(5)
                     if (moved) {
@@ -748,7 +748,7 @@ class FloatingAssistantService : Service() {
                         showPanel()
                     }
                 }
-                view.setTag(R.id.drag_state, null)
+                view.tag = null
                 return true
             }
         }
