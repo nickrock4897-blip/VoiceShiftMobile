@@ -74,10 +74,8 @@ jobs:
           test -f source/app/src/main/java/de/antiafk/assistant/MainActivity.kt
           test -f source/app/src/main/java/de/antiafk/assistant/SessionCore.kt
           cp app-build.gradle.kts source/app/build.gradle.kts
-          echo "MainActivity source checksum:"
+          echo "MainActivity checksum (must match uploaded source):"
           sha256sum source/app/src/main/java/de/antiafk/assistant/MainActivity.kt
-          echo "ScreenAnalysisService projection code:"
-          grep -n -A8 -B3 "getMediaProjection" source/app/src/main/java/de/antiafk/assistant/ScreenAnalysisService.kt
 
       - name: Apply Kotlin compatibility fixes to original app
         shell: bash
@@ -85,36 +83,32 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          import re
 
           root = Path("source/app/src/main/java/de/antiafk/assistant")
           main = root / "MainActivity.kt"
-          source = main.read_text()
+          text = main.read_text()
 
-          if "import android.content.Context" not in source:
+          if "import android.content.Context" not in text:
               anchor = "import android.content.Intent"
-              assert anchor in source, "MainActivity import anchor not found"
-              source = source.replace(anchor, "import android.content.Context\\n" + anchor, 1)
+              assert anchor in text, "MainActivity import anchor not found"
+              text = text.replace(anchor, "import android.content.Context\\n" + anchor, 1)
 
           old_callback = "    fun changed() { refresh++ }"
           new_callback = "    val changed: () -> Unit = { refresh++ }"
-          if old_callback in source:
-              source = source.replace(old_callback, new_callback, 1)
-          assert new_callback in source, "MainActivity callback declaration not fixed"
-          main.write_text(source)
+          if old_callback in text:
+              text = text.replace(old_callback, new_callback, 1)
+          assert new_callback in text, "MainActivity callback declaration not fixed"
+          main.write_text(text)
 
           service = root / "ScreenAnalysisService.kt"
-          source = service.read_text()
-          if "if (activeProjection == null)" not in source:
-              pattern = r"(val activeProjection\\s*=\\s*manager\\.getMediaProjection\\(resultCode, resultData\\)\\s*\\n)"
-              source, count = re.subn(
-                  pattern,
-                  r"\\1            if (activeProjection == null) {\\n                stopSelf()\\n                return START_NOT_STICKY\\n            }\\n",
-                  source,
-                  count=1
-              )
-              assert count == 1, "Could not add MediaProjection null guard"
-          service.write_text(source)
+          text = service.read_text()
+          projection_line = "val activeProjection = manager.getMediaProjection(resultCode, resultData)"
+          if "if (activeProjection == null)" not in text:
+              assert projection_line in text, "MediaProjection declaration not found"
+              insertion = projection_line + "\\n            if (activeProjection == null) {\\n                stopSelf()\\n                return START_NOT_STICKY\\n            }"
+              text = text.replace(projection_line, insertion, 1)
+          assert "if (activeProjection == null)" in text, "MediaProjection null handling not fixed"
+          service.write_text(text)
           PY
 
       - name: Run unit tests and build original debug and release APKs
