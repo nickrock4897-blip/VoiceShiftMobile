@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    name: Build original Anti-AFK Assistant APK
+    name: Build Anti-AFK Assistant 1.5.0
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -28,7 +28,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDK="\${ANDROID_HOME:-\${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           SDKMANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
           test -x "$SDKMANAGER"
           echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
@@ -43,7 +43,7 @@ jobs:
           set -euo pipefail
           set +e
           yes | sdkmanager --licenses >/dev/null
-          SDKMANAGER_EXIT=${PIPESTATUS[1]}
+          SDKMANAGER_EXIT=\${PIPESTATUS[1]}
           set -e
           if [[ "$SDKMANAGER_EXIT" -ne 0 ]]; then
             echo "sdkmanager --licenses failed with exit code $SDKMANAGER_EXIT"
@@ -62,7 +62,7 @@ jobs:
           gradle --version
           sdkmanager --list_installed
 
-      - name: Rebuild and verify original Android source archive
+      - name: Rebuild and verify source archive
         shell: bash
         run: |
           set -euo pipefail
@@ -72,46 +72,18 @@ jobs:
           tar -xzf source.tar.gz -C source
           test -f source/settings.gradle.kts
           test -f source/app/src/main/java/de/antiafk/assistant/MainActivity.kt
-          test -f source/app/src/main/java/de/antiafk/assistant/SessionCore.kt
-          cp app-build.gradle.kts source/app/build.gradle.kts
-          echo "MainActivity checksum (must match uploaded source):"
-          sha256sum source/app/src/main/java/de/antiafk/assistant/MainActivity.kt
 
-      - name: Apply Kotlin compatibility fixes to original app
+      - name: Generate Android app with session menu and auto clicker
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
+          cp app-build.gradle.kts source/app/build.gradle.kts
+          bash .github/scripts/create-safe-session-timer.sh
+          test -f source/app/src/main/java/de/antiafk/assistant/MainActivity.java
+          test -f source/app/src/main/java/de/antiafk/assistant/AutoClickAccessibilityService.java
+          test -f source/app/src/main/res/xml/accessibility_service_config.xml
 
-          root = Path("source/app/src/main/java/de/antiafk/assistant")
-          main = root / "MainActivity.kt"
-          text = main.read_text()
-
-          if "import android.content.Context" not in text:
-              anchor = "import android.content.Intent"
-              assert anchor in text, "MainActivity import anchor not found"
-              text = text.replace(anchor, "import android.content.Context\n" + anchor, 1)
-
-          old_callback = "    fun changed() { refresh++ }"
-          new_callback = "    val changed: () -> Unit = { refresh++ }"
-          if old_callback in text:
-              text = text.replace(old_callback, new_callback, 1)
-          assert new_callback in text, "MainActivity callback declaration not fixed"
-          main.write_text(text)
-
-          service = root / "ScreenAnalysisService.kt"
-          text = service.read_text()
-          projection_line = "val activeProjection = manager.getMediaProjection(resultCode, resultData)"
-          if "if (activeProjection == null)" not in text:
-              assert projection_line in text, "MediaProjection declaration not found"
-              insertion = projection_line + "\n            if (activeProjection == null) {\n                stopSelf()\n                return START_NOT_STICKY\n            }"
-              text = text.replace(projection_line, insertion, 1)
-          assert "if (activeProjection == null)" in text, "MediaProjection null handling not fixed"
-          service.write_text(text)
-          PY
-
-      - name: Run unit tests and build original debug and release APKs
+      - name: Run tests and build debug and release APKs
         shell: bash
         run: |
           set -euo pipefail
@@ -119,10 +91,10 @@ jobs:
           gradle --no-daemon --stacktrace --warning-mode all clean testDebugUnitTest assembleDebug assembleRelease
           find app/build/outputs/apk -type f -name '*.apk' -print
 
-      - name: Upload original Anti-AFK Assistant APKs
+      - name: Upload Anti-AFK Assistant APKs
         uses: actions/upload-artifact@v4
         with:
-          name: anti-afk-assistant-original-1.4.4-apks
+          name: anti-afk-assistant-1.5.0-apks
           path: |
             source/app/build/outputs/apk/debug/*.apk
             source/app/build/outputs/apk/release/*.apk
