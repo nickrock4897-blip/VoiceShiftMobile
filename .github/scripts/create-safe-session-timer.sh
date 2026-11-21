@@ -168,6 +168,7 @@ cat > "$APP/java/de/antiafk/assistant/SessionOverlayService.java" <<'JAVA'
 package de.antiafk.assistant;
 
 import android.accessibilityservice.AccessibilityService;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.PixelFormat;
@@ -176,6 +177,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -189,6 +191,10 @@ public class SessionOverlayService extends AccessibilityService {
     private WindowManager windowManager;
     private View panelView;
     private View bubbleView;
+    private WindowManager.LayoutParams panelParams;
+    private WindowManager.LayoutParams bubbleParams;
+    private SharedPreferences preferences;
+    private TextView statusText;
     private TextView timerText;
     private Button startButton;
     private Button stopButton;
@@ -208,6 +214,16 @@ public class SessionOverlayService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        preferences = getSharedPreferences("session_overlay", MODE_PRIVATE);
+        sessionRunning = preferences.getBoolean("running", false);
+        accumulatedSessionMs = preferences.getLong("elapsed_ms", 0L);
+        sessionStartedAt = preferences.getLong("started_at", 0L);
+        if (sessionRunning && (sessionStartedAt <= 0L || SystemClock.elapsedRealtime() < sessionStartedAt)) {
+            sessionRunning = false;
+            accumulatedSessionMs = 0L;
+            sessionStartedAt = 0L;
+            persistSession();
+        }
         createPanel();
         handler.removeCallbacks(timerTicker);
         handler.post(timerTicker);
@@ -230,6 +246,16 @@ public class SessionOverlayService extends AccessibilityService {
         heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         heading.setPadding(dp(3), dp(2), dp(3), dp(8));
         panel.addView(heading, matchWrap());
+        heading.setOnTouchListener((view, event) -> handleDrag(event, false));
+
+        statusText = new TextView(this);
+        statusText.setTextColor(0xFF70D5A0);
+        statusText.setTextSize(12);
+        statusText.setGravity(Gravity.CENTER);
+        statusText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        LinearLayout.LayoutParams statusParams = matchWrap();
+        statusParams.bottomMargin = dp(4);
+        panel.addView(statusText, statusParams);
 
         timerText = new TextView(this);
         timerText.setTextColor(0xFFEFF2FF);
@@ -255,6 +281,12 @@ public class SessionOverlayService extends AccessibilityService {
         actions.addView(stopButton, stopParams);
         stopButton.setOnClickListener(v -> stopSession());
 
+        Button emergency = makeButton("NOT-AUS · ZEIT STOPPEN", 0xFF9A3545);
+        LinearLayout.LayoutParams emergencyParams = matchWrap();
+        emergencyParams.topMargin = dp(7);
+        panel.addView(emergency, emergencyParams);
+        emergency.setOnClickListener(v -> stopSession());
+
         Button minimize = makeButton("Menü einklappen", 0xFF303A52);
         LinearLayout.LayoutParams minimizeParams = matchWrap();
         minimizeParams.topMargin = dp(8);
@@ -262,7 +294,7 @@ public class SessionOverlayService extends AccessibilityService {
         minimize.setOnClickListener(v -> minimizePanel());
 
         panelView = panel;
-        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+        panelParams = new WindowManager.LayoutParams(
             dp(230), WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
@@ -270,10 +302,10 @@ public class SessionOverlayService extends AccessibilityService {
                 | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         );
-        params.gravity = Gravity.TOP | Gravity.START;
-        params.x = dp(12);
-        params.y = dp(58);
-        windowManager.addView(panelView, params);
+        panelParams.gravity = Gravity.TOP | Gravity.START;
+        panelParams.x = preferences.getInt("panel_x", dp(12));
+        panelParams.y = preferences.getInt("panel_y", dp(58));
+        windowManager.addView(panelView, panelParams);
         updateTimer();
     }
 
@@ -295,13 +327,9 @@ public class SessionOverlayService extends AccessibilityService {
         bubble.setGravity(Gravity.CENTER);
         bubble.setBackground(roundRect(0xF07657E8, dp(28)));
         bubble.setElevation(dp(10));
-        bubble.setOnClickListener(v -> {
-            removeBubble();
-            createPanel();
-        });
-
         bubbleView = bubble;
-        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+        bubble.setOnTouchListener((view, event) -> handleDrag(event, true));
+        bubbleParams = new WindowManager.LayoutParams(
             dp(56), dp(56),
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
@@ -309,17 +337,65 @@ public class SessionOverlayService extends AccessibilityService {
                 | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         );
-        params.gravity = Gravity.TOP | Gravity.START;
-        params.x = dp(12);
-        params.y = dp(70);
-        windowManager.addView(bubbleView, params);
+        bubbleParams.gravity = Gravity.TOP | Gravity.START;
+        bubbleParams.x = preferences.getInt("bubble_x", dp(12));
+        bubbleParams.y = preferences.getInt("bubble_y", dp(70));
+        windowManager.addView(bubbleView, bubbleParams);
     }
 
     private void removeBubble() {
         if (bubbleView != null && windowManager != null) {
             try { windowManager.removeView(bubbleView); } catch (Exception ignored) {}
             bubbleView = null;
+            bubbleParams = null;
         }
+    }
+
+    private boolean handleDrag(MotionEvent event, boolean bubble) {
+        final WindowManager.LayoutParams params = bubble ? bubbleParams : panelParams;
+        final View target = bubble ? bubbleView : panelView;
+        if (params == null || target == null || windowManager == null) return false;
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                target.setTag(new float[]{event.getRawX(), event.getRawY(), params.x, params.y});
+                return true;
+            case MotionEvent.ACTION_MOVE:
+                float[] down = (float[]) target.getTag();
+                if (down == null) return true;
+                params.x = Math.max(0, Math.round(down[2] + event.getRawX() - down[0]));
+                params.y = Math.max(0, Math.round(down[3] + event.getRawY() - down[1]));
+                try { windowManager.updateViewLayout(target, params); } catch (Exception ignored) {}
+                return true;
+            case MotionEvent.ACTION_UP:
+                float[] origin = (float[]) target.getTag();
+                if (origin != null) {
+                    float dx = event.getRawX() - origin[0];
+                    float dy = event.getRawY() - origin[1];
+                    boolean tapped = Math.hypot(dx, dy) < dp(8);
+                    if (bubble && tapped) {
+                        removeBubble();
+                        createPanel();
+                    } else if (preferences != null) {
+                        preferences.edit()
+                            .putInt(bubble ? "bubble_x" : "panel_x", params.x)
+                            .putInt(bubble ? "bubble_y" : "panel_y", params.y)
+                            .apply();
+                    }
+                }
+                target.setTag(null);
+                return true;
+            default:
+                return true;
+        }
+    }
+
+    private void persistSession() {
+        if (preferences == null) return;
+        preferences.edit()
+            .putBoolean("running", sessionRunning)
+            .putLong("elapsed_ms", accumulatedSessionMs)
+            .putLong("started_at", sessionStartedAt)
+            .apply();
     }
 
     private void startSession() {
@@ -327,6 +403,7 @@ public class SessionOverlayService extends AccessibilityService {
         accumulatedSessionMs = 0L;
         sessionStartedAt = SystemClock.elapsedRealtime();
         sessionRunning = true;
+        persistSession();
         updateTimer();
     }
 
@@ -334,10 +411,16 @@ public class SessionOverlayService extends AccessibilityService {
         if (!sessionRunning) return;
         accumulatedSessionMs += SystemClock.elapsedRealtime() - sessionStartedAt;
         sessionRunning = false;
+        sessionStartedAt = 0L;
+        persistSession();
         updateTimer();
     }
 
     private void updateTimer() {
+        if (statusText != null) {
+            statusText.setText(sessionRunning ? "AFK AKTIV" : "AFK AUS");
+            statusText.setTextColor(sessionRunning ? 0xFF70D5A0 : 0xFFFFC56B);
+        }
         if (timerText == null) return;
         long elapsed = accumulatedSessionMs;
         if (sessionRunning) elapsed += SystemClock.elapsedRealtime() - sessionStartedAt;
@@ -393,6 +476,7 @@ public class SessionOverlayService extends AccessibilityService {
 
     @Override
     public void onDestroy() {
+        stopSession();
         handler.removeCallbacks(timerTicker);
         removeBubble();
         if (panelView != null && windowManager != null) {
