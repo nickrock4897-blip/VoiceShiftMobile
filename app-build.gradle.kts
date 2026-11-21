@@ -12,8 +12,8 @@ android {
         applicationId = "de.antiafk.assistant"
         minSdk = 26
         targetSdk = 35
-        versionCode = 17
-        versionName = "1.6.4"
+        versionCode = 18
+        versionName = "1.6.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

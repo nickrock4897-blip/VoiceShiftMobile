@@ -106,7 +106,7 @@ replace_once(
 replace_once(
     main,
     "        Text(\"Anti-AFK Assistant · Version 1.3.0\",",
-    "        Text(\"Anti-AFK Assistant · Version 1.6.4\",",
+    "        Text(\"Anti-AFK Assistant · Version 1.6.5\",",
     "version label"
 )
 replace_once(
@@ -177,6 +177,52 @@ replace_once(
     "            .putBoolean(\"keepScreenOn\", obj.optBoolean(\"keepScreenOn\", false))\n",
     "restore screen on preference"
 )
+
+notifications = Path("source/app/src/main/java/de/antiafk/assistant/Notifications.kt")
+replace_once(
+    notifications,
+    "import android.app.AlarmManager\n",
+    "import android.Manifest\nimport android.annotation.SuppressLint\nimport android.app.AlarmManager\nimport android.app.Notification\nimport android.content.pm.PackageManager\n",
+    "notification permission imports"
+)
+replace_once(
+    notifications,
+    "import androidx.core.app.NotificationManagerCompat\n",
+    "import androidx.core.app.NotificationManagerCompat\nimport androidx.core.content.ContextCompat\n",
+    "notification permission helper import"
+)
+replace_once(
+    notifications,
+    "        NotificationManagerCompat.from(context).notify(REMINDER_ID, builder.build())\n",
+    "        postNotification(context, REMINDER_ID, builder.build())\n",
+    "guard reminder notification permission"
+)
+replace_once(
+    notifications,
+    "        NotificationManagerCompat.from(context).notify(STATUS_ID, builder.build())\n",
+    "        postNotification(context, STATUS_ID, builder.build())\n",
+    "guard status notification permission"
+)
+replace_once(
+    notifications,
+    "        runCatching {\n            NotificationManagerCompat.from(context).notify(4104, builder.build())\n        }\n",
+    "        postNotification(context, 4104, builder.build())\n",
+    "guard manual reminder notification permission"
+)
+replace_once(
+    notifications,
+    "    private fun openAppPendingIntent(context: Context): PendingIntent {\n",
+    "    @SuppressLint(\"MissingPermission\")\n"
+    "    private fun postNotification(context: Context, id: Int, notification: Notification) {\n"
+    "        if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return\n"
+    "        val manager = NotificationManagerCompat.from(context)\n"
+    "        if (!manager.areNotificationsEnabled()) return\n"
+    "        try { manager.notify(id, notification) } catch (_: SecurityException) { }\n"
+    "    }\n\n"
+    "    private fun openAppPendingIntent(context: Context): PendingIntent {\n",
+    "safe notification helper"
+)
+
 PY
 
 cat > "$PKG/ScreenAnalysisService.kt" <<'KOTLIN'
