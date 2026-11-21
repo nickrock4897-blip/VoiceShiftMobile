@@ -1,0 +1,74 @@
+name: Anti-AFK Assistant Android Cloud Build
+
+on:
+  push:
+    branches:
+      - cloud-build/anti-afk-assistant
+
+permissions:
+  contents: read
+
+jobs:
+  android-build:
+    name: Test and build installable APKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out isolated build branch
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept licenses and install Android 36
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Install Gradle 8.13 on GitHub runner
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Verify toolchain
+        run: |
+          java -version
+          gradle --version
+          sdkmanager --list_installed
+
+      - name: Reassemble the Android source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          for part in anti-afk-source.part*.b64; do
+            base64 --decode "$part" > "${part%.b64}.bin"
+          done
+          cat anti-afk-source.part*.bin > source.tar.gz
+          mkdir source
+          tar -xzf source.tar.gz -C source
+          test -f source/settings.gradle.kts
+          test -f source/app/build.gradle.kts
+
+      - name: Run unit tests and build debug and release APKs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd source
+          gradle --no-daemon --stacktrace --warning-mode all clean testDebugUnitTest assembleDebug assembleRelease
+          find app/build/outputs/apk -type f -name '*.apk' -print
+
+      - name: Upload installable APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: anti-afk-assistant-1.4.5-apks
+          path: |
+            source/app/build/outputs/apk/debug/*.apk
+            source/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 30
