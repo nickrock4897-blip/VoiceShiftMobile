@@ -85,33 +85,18 @@ jobs:
           root = Path("source/app/src/main/java/de/antiafk/assistant")
           main = root / "MainActivity.kt"
           source = main.read_text()
-
           if "import android.content.Context" not in source:
-              match = re.search(r"^import android\\.content\\.\\w+.*$", source, re.M)
+              match = re.search(r"^import android\.content\.\w+.*$", source, re.M)
               assert match, "Could not find android.content import in MainActivity.kt"
-              source = source[:match.start()] + "import android.content.Context\\n" + source[match.start():]
-
-          source, count = re.subn(
-              r"fun changed\\(\\)\\s*\\{\\s*refresh\\+\\+\\s*\\}",
-              "val changed: () -> Unit = { refresh++ }",
-              source,
-              count=1
-          )
+              source = source[:match.start()] + "import android.content.Context\n" + source[match.start():]
+          source, count = re.subn(r"fun changed\(\)\s*\{\s*refresh\+\+\s*\}", "val changed: () -> Unit = { refresh++ }", source, count=1)
           assert count == 1, "Could not patch changed callback in MainActivity.kt"
           main.write_text(source)
 
           service = root / "ScreenAnalysisService.kt"
           source = service.read_text()
-          old = """            val activeProjection = manager.getMediaProjection(resultCode, resultData)
-            projection = activeProjection
-"""
-          new = """            val activeProjection = manager.getMediaProjection(resultCode, resultData)
-            if (activeProjection == null) {
-                stopSelf()
-                return START_NOT_STICKY
-            }
-            projection = activeProjection
-"""
+          old = "            val activeProjection = manager.getMediaProjection(resultCode, resultData)\n            projection = activeProjection"
+          new = "            val activeProjection = manager.getMediaProjection(resultCode, resultData)\n            if (activeProjection == null) {\n                stopSelf()\n                return START_NOT_STICKY\n            }\n            projection = activeProjection"
           assert old in source, "Could not find MediaProjection assignment in ScreenAnalysisService.kt"
           service.write_text(source.replace(old, new, 1))
           PY
