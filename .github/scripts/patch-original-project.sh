@@ -54,6 +54,24 @@ replace_once(
 )
 replace_once(
     main,
+    "                    state, activeProfile, english, changed,\n",
+    "                    state, activeProfile, english, ::changed,\n",
+    "dashboard callback reference"
+)
+replace_once(
+    main,
+    "                    AppPage.PROFILES -> ProfilesScreen(english, changed)\n",
+    "                    AppPage.PROFILES -> ProfilesScreen(english, ::changed)\n",
+    "profiles callback reference"
+)
+replace_once(
+    main,
+    "                    AppPage.SETTINGS -> SettingsScreen(english, isDark, changed)\n",
+    "                    AppPage.SETTINGS -> SettingsScreen(english, isDark, ::changed)\n",
+    "settings callback reference"
+)
+replace_once(
+    main,
     "    var overlay by remember { mutableStateOf(SessionManager.isOverlayEnabled(context)) }\n"
     "    var dark by remember { mutableStateOf(isDark) }\n",
     "    var overlay by remember { mutableStateOf(SessionManager.isOverlayEnabled(context)) }\n"
@@ -88,7 +106,7 @@ replace_once(
 replace_once(
     main,
     "        Text(\"Anti-AFK Assistant · Version 1.3.0\",",
-    "        Text(\"Anti-AFK Assistant · Version 1.6.2\",",
+    "        Text(\"Anti-AFK Assistant · Version 1.6.3\",",
     "version label"
 )
 replace_once(
@@ -734,7 +752,8 @@ class FloatingAssistantService : Service() {
                 val origin = view.tag as? FloatArray ?: return true
                 params.x = (origin[2] + event.rawX - origin[0]).toInt().coerceAtLeast(0)
                 params.y = (origin[3] + event.rawY - origin[1]).toInt().coerceAtLeast(0)
-                runCatching { windowManager.updateViewLayout(view, params) }
+                val overlayView = if (key == "panel") panel else bubble
+                if (overlayView != null) runCatching { windowManager.updateViewLayout(overlayView, params) }
                 return true
             }
             MotionEvent.ACTION_UP -> {

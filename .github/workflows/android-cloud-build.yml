@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Anti-AFK Assistant 1.6.2
+    name: Build Anti-AFK Assistant 1.6.3
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -113,7 +113,7 @@ jobs:
       - name: Upload Anti-AFK Assistant APKs
         uses: actions/upload-artifact@v4
         with:
-          name: anti-afk-assistant-1.6.2-full-safe-apks
+          name: anti-afk-assistant-1.6.3-full-safe-apks
           path: |
             source/app/build/outputs/apk/debug/*.apk
             source/app/build/outputs/apk/release/*.apk
