@@ -40,7 +40,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          set +e
           yes | sdkmanager --licenses >/dev/null
+          SDKMANAGER_EXIT=${PIPESTATUS[1]}
+          set -e
+          if [[ "$SDKMANAGER_EXIT" -ne 0 ]]; then
+            echo "sdkmanager --licenses failed with exit code $SDKMANAGER_EXIT"
+            exit "$SDKMANAGER_EXIT"
+          fi
           sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
       - name: Install Gradle 8.13 on GitHub runner
