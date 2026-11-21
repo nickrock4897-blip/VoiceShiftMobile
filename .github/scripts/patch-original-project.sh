@@ -106,7 +106,7 @@ replace_once(
 replace_once(
     main,
     "        Text(\"Anti-AFK Assistant · Version 1.3.0\",",
-    "        Text(\"Anti-AFK Assistant · Version 1.6.3\",",
+    "        Text(\"Anti-AFK Assistant · Version 1.6.4\",",
     "version label"
 )
 replace_once(

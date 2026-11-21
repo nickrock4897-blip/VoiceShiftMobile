@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Anti-AFK Assistant 1.6.3
+    name: Build Anti-AFK Assistant 1.6.4
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -93,27 +93,48 @@ jobs:
           set -euo pipefail
           cp app-build.gradle.kts source/app/build.gradle.kts
           bash .github/scripts/patch-original-project.sh
-          if [[ ! -f source/gradlew ]]; then
-            (cd source && gradle wrapper --gradle-version 8.13 --distribution-type bin)
-          fi
-          chmod +x source/gradlew
           test -f source/app/src/main/java/de/antiafk/assistant/MainActivity.kt
           test -f source/app/src/main/java/de/antiafk/assistant/FloatingAssistantService.kt
           test -f source/app/src/main/java/de/antiafk/assistant/ScreenAnalysisService.kt
           test -f source/app/src/main/java/de/antiafk/assistant/ScreenTextClassifier.kt
 
-      - name: Run tests and build debug and release APKs
+      - name: Run unit tests
+        timeout-minutes: 12
         shell: bash
         run: |
-          set -euo pipefail
+          set -euxo pipefail
           cd source
-          ./gradlew --no-daemon --stacktrace --warning-mode all clean testDebugUnitTest lintDebug assembleDebug assembleRelease
+          gradle --no-daemon --console=plain --stacktrace --warning-mode all clean testDebugUnitTest
+
+      - name: Run Android lint
+        timeout-minutes: 12
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd source
+          gradle --no-daemon --console=plain --stacktrace lintDebug
+
+      - name: Assemble debug APK
+        timeout-minutes: 12
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd source
+          gradle --no-daemon --console=plain --stacktrace assembleDebug
+
+      - name: Assemble release APK
+        timeout-minutes: 12
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd source
+          gradle --no-daemon --console=plain --stacktrace assembleRelease
           find app/build/outputs/apk -type f -name '*.apk' -print
 
       - name: Upload Anti-AFK Assistant APKs
         uses: actions/upload-artifact@v4
         with:
-          name: anti-afk-assistant-1.6.3-full-safe-apks
+          name: anti-afk-assistant-1.6.4-full-safe-apks
           path: |
             source/app/build/outputs/apk/debug/*.apk
             source/app/build/outputs/apk/release/*.apk
