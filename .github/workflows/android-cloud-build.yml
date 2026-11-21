@@ -28,7 +28,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          SDK="\${ANDROID_HOME:-\${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           SDKMANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
           test -x "$SDKMANAGER"
           echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
@@ -43,7 +43,7 @@ jobs:
           set -euo pipefail
           set +e
           yes | sdkmanager --licenses >/dev/null
-          SDKMANAGER_EXIT=\${PIPESTATUS[1]}
+          SDKMANAGER_EXIT=${PIPESTATUS[1]}
           set -e
           if [[ "$SDKMANAGER_EXIT" -ne 0 ]]; then
             echo "sdkmanager --licenses failed with exit code $SDKMANAGER_EXIT"
@@ -73,14 +73,14 @@ jobs:
           test -f source/settings.gradle.kts
           test -f source/app/src/main/java/de/antiafk/assistant/MainActivity.kt
 
-      - name: Generate Android app with session menu and auto clicker
+      - name: Generate floating AFK session menu
         shell: bash
         run: |
           set -euo pipefail
           cp app-build.gradle.kts source/app/build.gradle.kts
           bash .github/scripts/create-safe-session-timer.sh
           test -f source/app/src/main/java/de/antiafk/assistant/MainActivity.java
-          test -f source/app/src/main/java/de/antiafk/assistant/AutoClickAccessibilityService.java
+          test -f source/app/src/main/java/de/antiafk/assistant/SessionOverlayService.java
           test -f source/app/src/main/res/xml/accessibility_service_config.xml
 
       - name: Run tests and build debug and release APKs
@@ -94,7 +94,7 @@ jobs:
       - name: Upload Anti-AFK Assistant APKs
         uses: actions/upload-artifact@v4
         with:
-          name: anti-afk-assistant-1.5.0-apks
+          name: anti-afk-assistant-1.5.0-session-menu-apks
           path: |
             source/app/build/outputs/apk/debug/*.apk
             source/app/build/outputs/apk/release/*.apk
