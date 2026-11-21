@@ -217,7 +217,7 @@ public class MainActivity extends Activity {
         button.setTextColor(textColor);
         button.setTextSize(15);
         button.setAllCaps(false);
-        button.setTypeface(Typeface.create("sans-serif", bold ? Typeface.BOLD : Typeface.MEDIUM));
+        button.setTypeface(Typeface.create("sans-serif", bold ? Typeface.BOLD : Typeface.NORMAL));
         button.setPadding(dp(10), dp(7), dp(10), dp(7));
         button.setMinHeight(dp(48));
         button.setBackground(background(fill, 16));
