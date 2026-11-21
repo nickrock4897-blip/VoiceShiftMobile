@@ -91,7 +91,7 @@ jobs:
           if "import android.content.Context" not in text:
               anchor = "import android.content.Intent"
               assert anchor in text, "MainActivity import anchor not found"
-              text = text.replace(anchor, "import android.content.Context\\n" + anchor, 1)
+              text = text.replace(anchor, "import android.content.Context\n" + anchor, 1)
 
           old_callback = "    fun changed() { refresh++ }"
           new_callback = "    val changed: () -> Unit = { refresh++ }"
@@ -105,7 +105,7 @@ jobs:
           projection_line = "val activeProjection = manager.getMediaProjection(resultCode, resultData)"
           if "if (activeProjection == null)" not in text:
               assert projection_line in text, "MediaProjection declaration not found"
-              insertion = projection_line + "\\n            if (activeProjection == null) {\\n                stopSelf()\\n                return START_NOT_STICKY\\n            }"
+              insertion = projection_line + "\n            if (activeProjection == null) {\n                stopSelf()\n                return START_NOT_STICKY\n            }"
               text = text.replace(projection_line, insertion, 1)
           assert "if (activeProjection == null)" in text, "MediaProjection null handling not fixed"
           service.write_text(text)
